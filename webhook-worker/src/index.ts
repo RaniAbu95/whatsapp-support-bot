@@ -2,6 +2,9 @@ export interface Env {
   GEMINI_API_KEY: string;
   SUPABASE_URL: string;
   SUPABASE_KEY: string;
+  VERIFY_TOKEN: string;
+  WA_TOKEN: string;
+  WA_PHONE_NUMBER_ID: string;
 }
 
 async function supabase(env: Env, path: string, method = 'GET', body?: object) {
@@ -37,6 +40,24 @@ async function saveMessage(env: Env, ticketId: number, role: string, content: st
 async function getKnowledgeBase(env: Env): Promise<string> {
   const rows = await supabase(env, 'knowledge_base?select=question,answer') as any[];
   return rows.map(r => `ש: ${r.question}\nת: ${r.answer}`).join('\n\n');
+}
+
+async function sendWhatsAppMessage(env: Env, to: string, text: string) {
+  const res = await fetch(`https://graph.facebook.com/v19.0/${env.WA_PHONE_NUMBER_ID}/messages`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${env.WA_TOKEN}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      messaging_product: 'whatsapp',
+      to,
+      type: 'text',
+      text: { body: text },
+    }),
+  });
+  const data = await res.json();
+  console.log('WhatsApp API response:', JSON.stringify(data));
 }
 
 async function askGemini(message: string, knowledgeBase: string, apiKey: string): Promise<{answer: string, confidence: number}> {
@@ -76,7 +97,7 @@ export default {
       const mode = url.searchParams.get('hub.mode');
       const token = url.searchParams.get('hub.verify_token');
       const challenge = url.searchParams.get('hub.challenge');
-      if (mode === 'subscribe' && token === 'MY_VERIFY_TOKEN') {
+      if (mode === 'subscribe' && token === env.VERIFY_TOKEN) {
         return new Response(challenge, { status: 200 });
       }
       return new Response('Forbidden', { status: 403 });
@@ -96,8 +117,9 @@ export default {
       const knowledgeBase = await getKnowledgeBase(env);
       const result = await askGemini(message, knowledgeBase, env.GEMINI_API_KEY);
 
-      // שמור תשובה
+      // שמור תשובה ושלח בחזרה ב-WhatsApp
       await saveMessage(env, ticketId, 'assistant', result.answer, result.confidence);
+      await sendWhatsAppMessage(env, phone, result.answer);
 
       // אם confidence נמוך — העבר לנציג
       if (result.confidence < 0.7) {
