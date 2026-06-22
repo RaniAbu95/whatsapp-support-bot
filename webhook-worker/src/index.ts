@@ -22,12 +22,16 @@ async function verifyHmac(request: Request, appSecret: string): Promise<boolean>
     new TextEncoder().encode(appSecret),
     { name: 'HMAC', hash: 'SHA-256' },
     false,
-    ['sign']
+    ['verify']
   );
-  const mac = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(body));
-  const expected = 'sha256=' + Array.from(new Uint8Array(mac)).map(b => b.toString(16).padStart(2, '0')).join('');
 
-  return signature === expected;
+  const sigHex = signature.startsWith('sha256=') ? signature.slice(7) : '';
+  if (!sigHex) return false;
+  const sigBytes = Uint8Array.from({ length: sigHex.length / 2 }, (_, i) =>
+    parseInt(sigHex.slice(i * 2, i * 2 + 2), 16)
+  );
+
+  return crypto.subtle.verify('HMAC', key, sigBytes, new TextEncoder().encode(body));
 }
 
 async function supabase(env: Env, path: string, method = 'GET', body?: object) {
@@ -131,10 +135,13 @@ async function askGoogleAIStudio(prompt: string, apiKey: string): Promise<{answe
 }
 
 async function askVertexAI(prompt: string, env: Env): Promise<{answer: string, confidence: number, sources: string[]}> {
+  if (!env.VERTEX_SERVICE_ACCOUNT_KEY) throw new Error('VERTEX_SERVICE_ACCOUNT_KEY is not set');
+  if (!env.VERTEX_PROJECT_ID) throw new Error('VERTEX_PROJECT_ID is not set');
+
   const location = env.VERTEX_LOCATION || 'us-central1';
   const url = `https://${location}-aiplatform.googleapis.com/v1/projects/${env.VERTEX_PROJECT_ID}/locations/${location}/publishers/google/models/gemini-2.5-flash:generateContent`;
 
-  const serviceAccount = JSON.parse(env.VERTEX_SERVICE_ACCOUNT_KEY!);
+  const serviceAccount = JSON.parse(env.VERTEX_SERVICE_ACCOUNT_KEY);
   const token = await getVertexToken(serviceAccount);
 
   const res = await fetch(url, {
@@ -155,8 +162,13 @@ async function askVertexAI(prompt: string, env: Env): Promise<{answer: string, c
   return JSON.parse(data.candidates[0].content.parts[0].text);
 }
 
+let vertexTokenCache: { token: string; expiresAt: number } | null = null;
+
 async function getVertexToken(serviceAccount: any): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
+  if (vertexTokenCache && vertexTokenCache.expiresAt > now + 60) {
+    return vertexTokenCache.token;
+  }
   const header = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
   const payload = btoa(JSON.stringify({
     iss: serviceAccount.client_email,
@@ -190,10 +202,11 @@ async function getVertexToken(serviceAccount: any): Promise<string> {
     body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`
   });
   const tokenData = await tokenRes.json() as any;
+  vertexTokenCache = { token: tokenData.access_token, expiresAt: now + 3600 };
   return tokenData.access_token;
 }
 
-async function askAI(message: string, knowledgeBase: string, env: Env): Promise<{answer: string, confidence: number}> {
+async function askAI(message: string, knowledgeBase: string, env: Env): Promise<{answer: string, confidence: number, sources: string[]}> {
   const prompt = buildPrompt(message, knowledgeBase);
   const provider = env.AI_PROVIDER || 'google_ai_studio';
 

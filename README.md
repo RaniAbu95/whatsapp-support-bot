@@ -93,6 +93,7 @@ wrangler secret put SUPABASE_KEY
 wrangler secret put VERIFY_TOKEN
 wrangler secret put WA_TOKEN
 wrangler secret put WA_PHONE_NUMBER_ID
+wrangler secret put WA_APP_SECRET
 ```
 
 ### Dashboard
