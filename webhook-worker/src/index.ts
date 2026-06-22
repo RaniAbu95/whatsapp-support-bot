@@ -80,7 +80,9 @@ async function sendWhatsAppMessage(env: Env, to: string, text: string) {
     }),
   });
   const data = await res.json();
-  console.log('WhatsApp API response:', JSON.stringify(data));
+  if (!res.ok) {
+    throw new Error(`WhatsApp API failed: ${res.status} ${JSON.stringify(data)}`);
+  }
 }
 
 const RESPONSE_SCHEMA = {
