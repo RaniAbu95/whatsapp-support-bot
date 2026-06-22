@@ -5,10 +5,29 @@ export interface Env {
   VERIFY_TOKEN: string;
   WA_TOKEN: string;
   WA_PHONE_NUMBER_ID: string;
+  WA_APP_SECRET: string;          // Meta App Secret — לאימות HMAC
   AI_PROVIDER?: string;           // "google_ai_studio" | "vertex_ai" (default: google_ai_studio)
   VERTEX_PROJECT_ID?: string;
   VERTEX_LOCATION?: string;
   VERTEX_SERVICE_ACCOUNT_KEY?: string;
+}
+
+async function verifyHmac(request: Request, appSecret: string): Promise<boolean> {
+  const signature = request.headers.get('x-hub-signature-256');
+  if (!signature) return false;
+
+  const body = await request.text();
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(appSecret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  const mac = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(body));
+  const expected = 'sha256=' + Array.from(new Uint8Array(mac)).map(b => b.toString(16).padStart(2, '0')).join('');
+
+  return signature === expected;
 }
 
 async function supabase(env: Env, path: string, method = 'GET', body?: object) {
@@ -197,6 +216,9 @@ export default {
     }
 
     if (request.method === 'POST') {
+      const valid = await verifyHmac(request.clone(), env.WA_APP_SECRET);
+      if (!valid) return new Response('Unauthorized', { status: 401 });
+
       const body = await request.json() as any;
       const message = body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.text?.body;
       const phone = body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.from || 'test-user';
