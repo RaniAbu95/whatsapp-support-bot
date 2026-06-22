@@ -64,8 +64,25 @@ async function saveMessage(env: Env, ticketId: number, role: string, content: st
   await supabase(env, 'messages', 'POST', { ticket_id: ticketId, role, content, confidence });
 }
 
-async function getKnowledgeBase(env: Env): Promise<string> {
-  const rows = await supabase(env, 'knowledge_base?select=question,answer') as any[];
+async function generateEmbedding(text: string, apiKey: string): Promise<number[]> {
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: { parts: [{ text }] } })
+    }
+  );
+  const data = await res.json() as any;
+  return data.embedding.values;
+}
+
+async function getKnowledgeBase(env: Env, userMessage: string): Promise<string> {
+  const embedding = await generateEmbedding(userMessage, env.GEMINI_API_KEY);
+  const rows = await supabase(env, 'rpc/match_knowledge_base', 'POST', {
+    query_embedding: embedding,
+    match_count: 3
+  }) as any[];
   return rows.map(r => `ש: ${r.question}\nת: ${r.answer}`).join('\n\n');
 }
 
@@ -247,7 +264,7 @@ export default {
       await saveMessage(env, ticketId, 'user', message);
 
       // שאל את Gemini
-      const knowledgeBase = await getKnowledgeBase(env);
+      const knowledgeBase = await getKnowledgeBase(env, message);
       const result = await askAI(message, knowledgeBase, env);
 
       // שמור תשובה ושלח בחזרה ב-WhatsApp
