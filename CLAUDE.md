@@ -3,6 +3,10 @@
 ## מה זה
 מערכת תמיכת לקוחות: WhatsApp → Gemini → Supabase → Dashboard.
 
+## כתובות פרודקשן
+- **Dashboard (נציגים):** https://rani-support.com
+- **Webhook Worker:** https://webhook-worker.rani-aburaia.workers.dev
+
 ## Tech Stack
 - Cloudflare Workers (Webhook + API)
 - Supabase (tickets, messages, knowledge_base)
