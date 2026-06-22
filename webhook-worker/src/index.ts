@@ -61,7 +61,7 @@ async function getOrCreateTicket(env: Env, phone: string): Promise<number> {
 }
 
 async function saveMessage(env: Env, ticketId: number, role: string, content: string, confidence?: number, tokensUsed?: number) {
-  const costUsd = tokensUsed ? tokensUsed * 0.000002 : undefined;
+  const costUsd = tokensUsed ? tokensUsed * 0.000000075 : undefined;
   await supabase(env, 'messages', 'POST', { ticket_id: ticketId, role, content, confidence, tokens_used: tokensUsed, cost_usd: costUsd });
 }
 
