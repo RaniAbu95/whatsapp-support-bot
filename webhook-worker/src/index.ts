@@ -107,12 +107,15 @@ ${knowledgeBase}
 
 שאלת הלקוח: "${message}"
 
-החזר JSON עם שדות:
-- answer: התשובה לשאלה
-- confidence: מספר בין 0 ל-1 כמה אתה בטוח בתשובה
-- sources: רשימת מקורות מספר התשובות ששימשו
+חוקים חשובים:
+1. ענה רק על סמך ספר התשובות למעלה. אין להמציא תשובות.
+2. אם השאלה אינה קיימת בספר התשובות — confidence חייב להיות 0.2 בדיוק.
+3. אם השאלה קיימת ויש תשובה ברורה — confidence גבוה מ-0.7.
 
-אם השאלה לא קיימת בספר התשובות — תן confidence נמוך מ-0.7`;
+החזר JSON עם שדות:
+- answer: התשובה לשאלה (אם אינה בספר — כתוב "לא נמצא מידע")
+- confidence: מספר בין 0 ל-1
+- sources: רשימת מקורות מספר התשובות ששימשו`;
 }
 
 async function askGoogleAIStudio(prompt: string, apiKey: string): Promise<{answer: string, confidence: number, sources: string[], tokensUsed: number}> {
