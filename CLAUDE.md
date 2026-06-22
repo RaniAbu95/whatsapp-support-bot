@@ -10,7 +10,7 @@
 ## Tech Stack
 - Cloudflare Workers (Webhook + API)
 - Supabase (tickets, messages, knowledge_base)
-- Vertex AI gemini-2.5-flash (Structured Output)
+- Google AI Studio gemini-2.5-flash (Structured Output)
 - Next.js + Tailwind (Dashboard)
 
 ## עלות תפעול — 100 בקשות ביום
