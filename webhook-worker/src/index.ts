@@ -234,13 +234,13 @@ export default {
 
       // שמור תשובה ושלח בחזרה ב-WhatsApp
       await saveMessage(env, ticketId, 'assistant', result.answer, result.confidence);
-      await sendWhatsAppMessage(env, phone, result.answer);
 
-      // אם confidence נמוך — העבר לנציג
       if (result.confidence < 0.7) {
+        await sendWhatsAppMessage(env, phone, 'מעביר אותך לנציג, ניצור קשר בקרוב.');
         await supabase(env, `tickets?id=eq.${ticketId}`, 'PATCH', { status: 'escalated' });
         console.log(`Ticket ${ticketId} escalated — confidence: ${result.confidence}`);
       } else {
+        await sendWhatsAppMessage(env, phone, result.answer);
         await supabase(env, `tickets?id=eq.${ticketId}`, 'PATCH', { status: 'auto_resolved' });
       }
 
