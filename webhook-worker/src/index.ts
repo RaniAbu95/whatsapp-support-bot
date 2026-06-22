@@ -60,8 +60,9 @@ async function getOrCreateTicket(env: Env, phone: string): Promise<number> {
   return created[0].id;
 }
 
-async function saveMessage(env: Env, ticketId: number, role: string, content: string, confidence?: number) {
-  await supabase(env, 'messages', 'POST', { ticket_id: ticketId, role, content, confidence });
+async function saveMessage(env: Env, ticketId: number, role: string, content: string, confidence?: number, tokensUsed?: number) {
+  const costUsd = tokensUsed ? tokensUsed * 0.000002 : undefined;
+  await supabase(env, 'messages', 'POST', { ticket_id: ticketId, role, content, confidence, tokens_used: tokensUsed, cost_usd: costUsd });
 }
 
 async function getKnowledgeBase(env: Env): Promise<string> {
@@ -115,7 +116,7 @@ ${knowledgeBase}
 אם השאלה לא קיימת בספר התשובות — תן confidence נמוך מ-0.7`;
 }
 
-async function askGoogleAIStudio(prompt: string, apiKey: string): Promise<{answer: string, confidence: number, sources: string[]}> {
+async function askGoogleAIStudio(prompt: string, apiKey: string): Promise<{answer: string, confidence: number, sources: string[], tokensUsed: number}> {
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
     {
@@ -131,7 +132,8 @@ async function askGoogleAIStudio(prompt: string, apiKey: string): Promise<{answe
     }
   );
   const data = await res.json() as any;
-  return JSON.parse(data.candidates[0].content.parts[0].text);
+  const tokensUsed = data.usageMetadata?.totalTokenCount ?? 0;
+  return { ...JSON.parse(data.candidates[0].content.parts[0].text), tokensUsed };
 }
 
 async function askVertexAI(prompt: string, env: Env): Promise<{answer: string, confidence: number, sources: string[]}> {
@@ -206,12 +208,13 @@ async function getVertexToken(serviceAccount: any): Promise<string> {
   return tokenData.access_token;
 }
 
-async function askAI(message: string, knowledgeBase: string, env: Env): Promise<{answer: string, confidence: number, sources: string[]}> {
+async function askAI(message: string, knowledgeBase: string, env: Env): Promise<{answer: string, confidence: number, sources: string[], tokensUsed: number}> {
   const prompt = buildPrompt(message, knowledgeBase);
   const provider = env.AI_PROVIDER || 'google_ai_studio';
 
   if (provider === 'vertex_ai') {
-    return askVertexAI(prompt, env);
+    const result = await askVertexAI(prompt, env);
+    return { ...result, tokensUsed: 0 };
   }
   return askGoogleAIStudio(prompt, env.GEMINI_API_KEY);
 }
@@ -248,7 +251,7 @@ export default {
       const result = await askAI(message, knowledgeBase, env);
 
       // שמור תשובה ושלח בחזרה ב-WhatsApp
-      await saveMessage(env, ticketId, 'assistant', result.answer, result.confidence);
+      await saveMessage(env, ticketId, 'assistant', result.answer, result.confidence, result.tokensUsed);
 
       if (result.confidence < 0.7) {
         await sendWhatsAppMessage(env, phone, 'מעביר אותך לנציג, ניצור קשר בקרוב.');
