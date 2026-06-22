@@ -3,7 +3,7 @@ import { createSupabaseClient, type Ticket, type TicketStatus } from './lib/supa
 
 const STATUS_LABELS: Record<TicketStatus, string> = {
   open: 'פתוח',
-  escalated: 'הסלמה',
+  escalated: 'לא נפתר',
   auto_resolved: 'נפתר אוטומטית',
   closed: 'סגור',
 }
@@ -18,7 +18,7 @@ const STATUS_BADGE: Record<TicketStatus, string> = {
 const FILTERS = [
   { value: 'all', label: 'הכל' },
   { value: 'open', label: 'פתוח' },
-  { value: 'escalated', label: 'הסלמה' },
+  { value: 'escalated', label: 'לא נפתר' },
   { value: 'auto_resolved', label: 'נפתר אוטומטית' },
   { value: 'closed', label: 'סגור' },
 ]
