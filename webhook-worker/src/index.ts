@@ -5,6 +5,10 @@ export interface Env {
   VERIFY_TOKEN: string;
   WA_TOKEN: string;
   WA_PHONE_NUMBER_ID: string;
+  AI_PROVIDER?: string;           // "google_ai_studio" | "vertex_ai" (default: google_ai_studio)
+  VERTEX_PROJECT_ID?: string;
+  VERTEX_LOCATION?: string;
+  VERTEX_SERVICE_ACCOUNT_KEY?: string;
 }
 
 async function supabase(env: Env, path: string, method = 'GET', body?: object) {
@@ -60,20 +64,33 @@ async function sendWhatsAppMessage(env: Env, to: string, text: string) {
   console.log('WhatsApp API response:', JSON.stringify(data));
 }
 
-async function askGemini(message: string, knowledgeBase: string, apiKey: string): Promise<{answer: string, confidence: number}> {
-  const prompt = `אתה עוזר תמיכת לקוחות. ענה בעברית בלבד.
+const RESPONSE_SCHEMA = {
+  type: "object",
+  properties: {
+    answer: { type: "string" },
+    confidence: { type: "number", minimum: 0, maximum: 1 },
+    sources: { type: "array", items: { type: "string" } }
+  },
+  required: ["answer", "confidence", "sources"]
+};
+
+function buildPrompt(message: string, knowledgeBase: string): string {
+  return `אתה עוזר תמיכת לקוחות. ענה בעברית בלבד.
 
 ספר התשובות שלך:
 ${knowledgeBase}
 
 שאלת הלקוח: "${message}"
 
-החזר JSON בלבד עם שדות:
+החזר JSON עם שדות:
 - answer: התשובה לשאלה
 - confidence: מספר בין 0 ל-1 כמה אתה בטוח בתשובה
+- sources: רשימת מקורות מספר התשובות ששימשו
 
 אם השאלה לא קיימת בספר התשובות — תן confidence נמוך מ-0.7`;
+}
 
+async function askGoogleAIStudio(prompt: string, apiKey: string): Promise<{answer: string, confidence: number, sources: string[]}> {
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
     {
@@ -81,12 +98,88 @@ ${knowledgeBase}
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: 'application/json' }
+        generationConfig: {
+          responseMimeType: 'application/json',
+          responseSchema: RESPONSE_SCHEMA
+        }
       })
     }
   );
   const data = await res.json() as any;
   return JSON.parse(data.candidates[0].content.parts[0].text);
+}
+
+async function askVertexAI(prompt: string, env: Env): Promise<{answer: string, confidence: number, sources: string[]}> {
+  const location = env.VERTEX_LOCATION || 'us-central1';
+  const url = `https://${location}-aiplatform.googleapis.com/v1/projects/${env.VERTEX_PROJECT_ID}/locations/${location}/publishers/google/models/gemini-2.5-flash:generateContent`;
+
+  const serviceAccount = JSON.parse(env.VERTEX_SERVICE_ACCOUNT_KEY!);
+  const token = await getVertexToken(serviceAccount);
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        responseMimeType: 'application/json',
+        responseSchema: RESPONSE_SCHEMA
+      }
+    })
+  });
+  const data = await res.json() as any;
+  return JSON.parse(data.candidates[0].content.parts[0].text);
+}
+
+async function getVertexToken(serviceAccount: any): Promise<string> {
+  const now = Math.floor(Date.now() / 1000);
+  const header = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
+  const payload = btoa(JSON.stringify({
+    iss: serviceAccount.client_email,
+    scope: 'https://www.googleapis.com/auth/cloud-platform',
+    aud: 'https://oauth2.googleapis.com/token',
+    exp: now + 3600,
+    iat: now
+  }));
+
+  const signingInput = `${header}.${payload}`;
+  const pemKey = serviceAccount.private_key;
+  const pemBody = pemKey.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\n/g, '');
+  const keyBytes = Uint8Array.from(atob(pemBody), c => c.charCodeAt(0));
+
+  const privateKey = await crypto.subtle.importKey(
+    'pkcs8', keyBytes,
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    false, ['sign']
+  );
+
+  const signature = await crypto.subtle.sign(
+    'RSASSA-PKCS1-v1_5', privateKey,
+    new TextEncoder().encode(signingInput)
+  );
+
+  const jwt = `${signingInput}.${btoa(String.fromCharCode(...new Uint8Array(signature)))}`;
+
+  const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`
+  });
+  const tokenData = await tokenRes.json() as any;
+  return tokenData.access_token;
+}
+
+async function askAI(message: string, knowledgeBase: string, env: Env): Promise<{answer: string, confidence: number}> {
+  const prompt = buildPrompt(message, knowledgeBase);
+  const provider = env.AI_PROVIDER || 'google_ai_studio';
+
+  if (provider === 'vertex_ai') {
+    return askVertexAI(prompt, env);
+  }
+  return askGoogleAIStudio(prompt, env.GEMINI_API_KEY);
 }
 
 export default {
@@ -115,7 +208,7 @@ export default {
 
       // שאל את Gemini
       const knowledgeBase = await getKnowledgeBase(env);
-      const result = await askGemini(message, knowledgeBase, env.GEMINI_API_KEY);
+      const result = await askAI(message, knowledgeBase, env);
 
       // שמור תשובה ושלח בחזרה ב-WhatsApp
       await saveMessage(env, ticketId, 'assistant', result.answer, result.confidence);
