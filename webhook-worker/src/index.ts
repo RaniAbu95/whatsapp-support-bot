@@ -46,7 +46,9 @@ async function supabase(env: Env, path: string, method = 'GET', body?: object) {
     body: body ? JSON.stringify(body) : undefined
   });
   const text = await res.text();
-  return text ? JSON.parse(text) : {};
+  const data = text ? JSON.parse(text) : {};
+  if (!res.ok) console.error(`Supabase error [${method} ${path}] ${res.status}:`, JSON.stringify(data));
+  return data;
 }
 
 
@@ -66,11 +68,11 @@ async function saveMessage(env: Env, ticketId: number, role: string, content: st
 
 async function generateEmbedding(text: string, apiKey: string): Promise<number[]> {
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=${apiKey}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: { parts: [{ text }] } })
+      body: JSON.stringify({ content: { parts: [{ text }] }, outputDimensionality: 768 })
     }
   );
   const data = await res.json() as any;
@@ -126,8 +128,7 @@ ${knowledgeBase}
 
 חוקים חשובים:
 1. ענה רק על סמך ספר התשובות למעלה. אין להמציא תשובות.
-2. אם השאלה אינה קיימת בספר התשובות — confidence חייב להיות נמוך מ-0.5.
-3. אם השאלה קיימת ויש תשובה ברורה — confidence גבוה מ-0.7.
+2. אם השאלה קיימת ויש תשובה ברורה — confidence גבוה מ-0.7.
 
 החזר JSON עם שדות:
 - answer: התשובה לשאלה (אם אינה בספר — כתוב "מעביר אותך לנציג, ניצור קשר בקרוב.")
