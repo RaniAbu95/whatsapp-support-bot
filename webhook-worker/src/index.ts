@@ -60,9 +60,8 @@ async function getOrCreateTicket(env: Env, phone: string): Promise<number> {
   return created[0].id;
 }
 
-async function saveMessage(env: Env, ticketId: number, role: string, content: string, confidence?: number, tokensUsed?: number) {
-  const costUsd = tokensUsed ? tokensUsed * 0.000000075 : undefined;
-  await supabase(env, 'messages', 'POST', { ticket_id: ticketId, role, content, confidence, tokens_used: tokensUsed, cost_usd: costUsd });
+async function saveMessage(env: Env, ticketId: number, role: string, content: string, confidence?: number) {
+  await supabase(env, 'messages', 'POST', { ticket_id: ticketId, role, content, confidence });
 }
 
 async function getKnowledgeBase(env: Env): Promise<string> {
@@ -251,7 +250,7 @@ export default {
       const result = await askAI(message, knowledgeBase, env);
 
       // שמור תשובה ושלח בחזרה ב-WhatsApp
-      await saveMessage(env, ticketId, 'assistant', result.answer, result.confidence, result.tokensUsed);
+      await saveMessage(env, ticketId, 'assistant', result.answer, result.confidence);
 
       if (result.confidence < 0.7) {
         await sendWhatsAppMessage(env, phone, 'מעביר אותך לנציג, ניצור קשר בקרוב.');
