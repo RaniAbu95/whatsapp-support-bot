@@ -113,12 +113,12 @@ ${knowledgeBase}
 3. אם השאלה קיימת ויש תשובה ברורה — confidence גבוה מ-0.7.
 
 החזר JSON עם שדות:
-- answer: התשובה לשאלה (אם אינה בספר — כתוב "לא נמצא מידע")
+- answer: התשובה לשאלה (אם אינה בספר — כתוב "מעביר אותך לנציג, ניצור קשר בקרוב.")
 - confidence: מספר בין 0 ל-1
 - sources: רשימת מקורות מספר התשובות ששימשו`;
 }
 
-async function askGoogleAIStudio(prompt: string, apiKey: string): Promise<{answer: string, confidence: number, sources: string[], tokensUsed: number}> {
+async function askGoogleAIStudio(prompt: string, apiKey: string): Promise<{answer: string, confidence: number, sources: string[]}> {
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
     {
@@ -134,8 +134,7 @@ async function askGoogleAIStudio(prompt: string, apiKey: string): Promise<{answe
     }
   );
   const data = await res.json() as any;
-  const tokensUsed = data.usageMetadata?.totalTokenCount ?? 0;
-  return { ...JSON.parse(data.candidates[0].content.parts[0].text), tokensUsed };
+  return JSON.parse(data.candidates[0].content.parts[0].text);
 }
 
 async function askVertexAI(prompt: string, env: Env): Promise<{answer: string, confidence: number, sources: string[]}> {
@@ -210,13 +209,12 @@ async function getVertexToken(serviceAccount: any): Promise<string> {
   return tokenData.access_token;
 }
 
-async function askAI(message: string, knowledgeBase: string, env: Env): Promise<{answer: string, confidence: number, sources: string[], tokensUsed: number}> {
+async function askAI(message: string, knowledgeBase: string, env: Env): Promise<{answer: string, confidence: number, sources: string[]}> {
   const prompt = buildPrompt(message, knowledgeBase);
   const provider = env.AI_PROVIDER || 'google_ai_studio';
 
   if (provider === 'vertex_ai') {
-    const result = await askVertexAI(prompt, env);
-    return { ...result, tokensUsed: 0 };
+    return askVertexAI(prompt, env);
   }
   return askGoogleAIStudio(prompt, env.GEMINI_API_KEY);
 }
