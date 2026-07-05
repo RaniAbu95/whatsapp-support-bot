@@ -47,7 +47,15 @@ export default async function Page({
     <div className="max-w-4xl mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">פניות תמיכה</h1>
-        <span className="text-sm text-gray-500">{tickets?.length ?? 0} פניות</span>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/reports"
+            className="px-4 py-2 rounded-lg bg-purple-100 text-purple-700 hover:bg-purple-200 transition-colors text-sm font-medium"
+          >
+            📊 דוח חודשי
+          </Link>
+          <span className="text-sm text-gray-500">{tickets?.length ?? 0} פניות</span>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2 mb-6">

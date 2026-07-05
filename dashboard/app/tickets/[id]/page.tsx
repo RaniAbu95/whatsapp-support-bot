@@ -95,11 +95,23 @@ export default async function TicketPage({
 
 function MessageBubble({ message }: { message: Message }) {
   const isUser = message.role === 'user'
+  const languageNames: Record<string, string> = {
+    'he': 'עברית',
+    'en': 'English',
+    'ar': 'العربية',
+    'es': 'Español',
+    'fr': 'Français',
+    'de': 'Deutsch',
+    'ru': 'Русский',
+    'pt': 'Português',
+    'it': 'Italiano',
+    'ja': '日本語',
+  }
 
   return (
     <div className={`flex ${isUser ? 'justify-start' : 'justify-end'}`}>
       <div className={`max-w-[75%] rounded-2xl px-4 py-3 ${ROLE_BUBBLE[message.role]}`}>
-        <div className="flex items-center gap-2 mb-1">
+        <div className="flex items-center gap-2 mb-1 flex-wrap">
           <span className="text-xs font-semibold opacity-60">{ROLE_LABEL[message.role]}</span>
           <span className="text-xs opacity-40">
             {new Date(message.created_at).toLocaleTimeString('he-IL', {
@@ -107,6 +119,11 @@ function MessageBubble({ message }: { message: Message }) {
               minute: '2-digit',
             })}
           </span>
+          {message.language && (isUser || message.role === 'assistant') && (
+            <span className="text-xs px-1.5 py-0.5 rounded bg-opacity-50 bg-purple-200 text-purple-800">
+              {languageNames[message.language] || message.language}
+            </span>
+          )}
           {message.role === 'assistant' && message.confidence != null && (
             <ConfidenceBadge score={message.confidence} />
           )}

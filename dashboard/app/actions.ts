@@ -49,3 +49,52 @@ export async function sendAgentMessage(ticketId: string, content: string) {
 
   revalidatePath(`/tickets/${ticketId}`)
 }
+
+export async function getMonthlyReport() {
+  const supabase = createSupabaseClient()
+  const now = new Date()
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+
+  const { data: messages } = await supabase
+    .from('messages')
+    .select('*')
+    .gte('created_at', monthStart.toISOString())
+    .lt('created_at', monthEnd.toISOString())
+
+  if (!messages) return null
+
+  const userMessages = messages.filter((m: any) => m.role === 'user')
+  const assistantMessages = messages.filter((m: any) => m.role === 'assistant')
+
+  const autoResolved = assistantMessages.filter((m: any) => m.confidence && m.confidence > 0.7).length
+  const totalAssistantMessages = assistantMessages.length
+  const escalated = totalAssistantMessages - autoResolved
+
+  const languageCounts: Record<string, number> = {}
+  userMessages.forEach((m: any) => {
+    if (m.language) {
+      languageCounts[m.language] = (languageCounts[m.language] || 0) + 1
+    }
+  })
+
+  const confidenceScores = assistantMessages
+    .filter((m: any) => m.confidence !== null)
+    .map((m: any) => m.confidence)
+  const avgConfidence = confidenceScores.length > 0
+    ? (confidenceScores.reduce((a: number, b: number) => a + b, 0) / confidenceScores.length * 100).toFixed(1)
+    : 0
+
+  return {
+    month: monthStart.toLocaleString('he-IL', { month: 'long', year: 'numeric' }),
+    totalMessages: userMessages.length,
+    respondedMessages: totalAssistantMessages,
+    autoResolved,
+    escalated,
+    unanswered: userMessages.length - totalAssistantMessages,
+    resolutionRate: totalAssistantMessages > 0 ? ((autoResolved / totalAssistantMessages) * 100).toFixed(1) : 0,
+    languages: languageCounts,
+    avgConfidence,
+    timestamp: new Date().toISOString()
+  }
+}

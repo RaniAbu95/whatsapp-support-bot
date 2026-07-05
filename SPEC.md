@@ -8,7 +8,7 @@
 
 ```
 tickets:        id, wa_phone, status (open/auto_resolved/escalated/closed), created_at
-messages:       id, ticket_id, role (user/assistant/agent), content, confidence, created_at
+messages:       id, ticket_id, role (user/assistant/agent), content, confidence, language, created_at
 knowledge_base: id, category, question, answer, embedding (vector)
 ```
 

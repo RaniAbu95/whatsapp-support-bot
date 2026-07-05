@@ -22,5 +22,6 @@ export type Message = {
   role: 'user' | 'assistant' | 'agent'
   content: string
   confidence: number | null
+  language?: string
   created_at: string
 }

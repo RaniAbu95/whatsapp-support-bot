@@ -62,8 +62,8 @@ async function getOrCreateTicket(env: Env, phone: string): Promise<number> {
   return created[0].id;
 }
 
-async function saveMessage(env: Env, ticketId: number, role: string, content: string, confidence?: number) {
-  await supabase(env, 'messages', 'POST', { ticket_id: ticketId, role, content, confidence });
+async function saveMessage(env: Env, ticketId: number, role: string, content: string, confidence?: number, language?: string) {
+  await supabase(env, 'messages', 'POST', { ticket_id: ticketId, role, content, confidence, language });
 }
 
 async function generateEmbedding(text: string, apiKey: string): Promise<number[]> {
@@ -77,6 +77,30 @@ async function generateEmbedding(text: string, apiKey: string): Promise<number[]
   );
   const data = await res.json() as any;
   return data.embedding.values;
+}
+
+async function detectLanguage(text: string, apiKey: string): Promise<string> {
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: `Respond with ONLY the two-letter ISO 639-1 language code. No explanation. Text: "${text}"` }] }],
+          generationConfig: { temperature: 0 }
+        })
+      }
+    );
+    const data = await res.json() as any;
+    const rawResponse = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const cleanedCode = rawResponse.trim().toLowerCase().match(/^[a-z]{2}/)?.[0] || '';
+    console.log(`[LANG] Text: "${text.substring(0, 20)}..." → Raw: "${rawResponse}" → Code: "${cleanedCode}"`);
+    return cleanedCode.length === 2 ? cleanedCode : 'he';
+  } catch (error) {
+    console.error('[LANG ERROR]', error);
+    return 'he';
+  }
 }
 
 async function getKnowledgeBase(env: Env, userMessage: string): Promise<string> {
@@ -118,22 +142,46 @@ const RESPONSE_SCHEMA = {
   required: ["answer", "confidence", "sources"]
 };
 
-function buildPrompt(message: string, knowledgeBase: string): string {
-  return `אתה עוזר תמיכת לקוחות. ענה בעברית בלבד.
+function buildPrompt(message: string, knowledgeBase: string, language: string = 'he'): string {
+  const languageInstructions: {[key: string]: string} = {
+    'he': 'עברית',
+    'en': 'English',
+    'ar': 'العربية',
+    'es': 'Spanish',
+    'fr': 'French',
+    'de': 'German',
+    'ru': 'Russian',
+    'pt': 'Portuguese',
+    'it': 'Italian',
+    'ja': '日本語'
+  };
 
-ספר התשובות שלך:
+  const langName = languageInstructions[language] || 'English';
+  const escalationMessages: {[key: string]: string} = {
+    'he': "מעביר אותך לנציג, ניצור קשר בקרוב.",
+    'ar': "سيتم تحويلك إلى وكيل، سنتصل بك قريبا.",
+    'en': "Transferring you to an agent, we'll be in touch soon.",
+    'es': "Transfiriéndote a un agente, nos pondremos en contacto pronto.",
+    'fr': "Transfert à un agent, nous vous recontacterons bientôt.",
+  };
+  const defaultMessage = escalationMessages[language] || escalationMessages['en'];
+
+  return `You are a customer support assistant. Answer in ${langName}.
+
+Knowledge Base:
 ${knowledgeBase}
 
-שאלת הלקוח: "${message}"
+Customer Question: "${message}"
 
-חוקים חשובים:
-1. ענה רק על סמך ספר התשובות למעלה. אין להמציא תשובות.
-2. אם השאלה קיימת ויש תשובה ברורה — confidence גבוה מ-0.7.
+Important Rules:
+1. Answer only based on the knowledge base above. Do not make up answers.
+2. If the question exists and there is a clear answer — confidence > 0.7.
+3. If the question is not in the knowledge base — respond with: "${defaultMessage}"
 
-החזר JSON עם שדות:
-- answer: התשובה לשאלה (אם אינה בספר — כתוב "מעביר אותך לנציג, ניצור קשר בקרוב.")
-- confidence: מספר בין 0 ל-1
-- sources: רשימת מקורות מספר התשובות ששימשו`;
+Return JSON with fields:
+- answer: The answer to the question
+- confidence: A number between 0 and 1
+- sources: List of sources from the knowledge base that were used`;
 }
 
 async function askGoogleAIStudio(prompt: string, apiKey: string): Promise<{answer: string, confidence: number, sources: string[]}> {
@@ -227,8 +275,8 @@ async function getVertexToken(serviceAccount: any): Promise<string> {
   return tokenData.access_token;
 }
 
-async function askAI(message: string, knowledgeBase: string, env: Env): Promise<{answer: string, confidence: number, sources: string[]}> {
-  const prompt = buildPrompt(message, knowledgeBase);
+async function askAI(message: string, knowledgeBase: string, env: Env, language: string = 'he'): Promise<{answer: string, confidence: number, sources: string[]}> {
+  const prompt = buildPrompt(message, knowledgeBase, language);
   const provider = env.AI_PROVIDER || 'google_ai_studio';
 
   if (provider === 'vertex_ai') {
@@ -260,19 +308,30 @@ export default {
       const phone = body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.from || 'test-user';
       if (!message) return new Response('OK', { status: 200 });
 
+      // Detect language
+      const language = await detectLanguage(message, env.GEMINI_API_KEY);
+
       // שמור כרטיס + הודעת לקוח
       const ticketId = await getOrCreateTicket(env, phone);
-      await saveMessage(env, ticketId, 'user', message);
+      await saveMessage(env, ticketId, 'user', message, undefined, language);
 
       // שאל את Gemini
       const knowledgeBase = await getKnowledgeBase(env, message);
-      const result = await askAI(message, knowledgeBase, env);
+      const result = await askAI(message, knowledgeBase, env, language);
 
       // שמור תשובה ושלח בחזרה ב-WhatsApp
-      await saveMessage(env, ticketId, 'assistant', result.answer, result.confidence);
+      await saveMessage(env, ticketId, 'assistant', result.answer, result.confidence, language);
 
       if (result.confidence < 0.7) {
-        await sendWhatsAppMessage(env, phone, 'מעביר אותך לנציג, ניצור קשר בקרוב.');
+        const escalationMessages: {[key: string]: string} = {
+          'he': 'מעביר אותך לנציג, ניצור קשר בקרוב.',
+          'ar': 'سيتم تحويلك إلى وكيل، سنتصل بك قريبا.',
+          'en': 'Transferring you to an agent, we\'ll be in touch soon.',
+          'es': 'Transfiriéndote a un agente, nos pondremos en contacto pronto.',
+          'fr': 'Transfert à un agent, nous vous recontacterons bientôt.',
+        };
+        const escalationMessage = escalationMessages[language] || escalationMessages['en'];
+        await sendWhatsAppMessage(env, phone, escalationMessage);
         await supabase(env, `tickets?id=eq.${ticketId}`, 'PATCH', { status: 'escalated' });
         console.log(`Ticket ${ticketId} escalated — confidence: ${result.confidence}`);
       } else {
@@ -280,7 +339,7 @@ export default {
         await supabase(env, `tickets?id=eq.${ticketId}`, 'PATCH', { status: 'auto_resolved' });
       }
 
-      return new Response(JSON.stringify({ ...result, ticketId }), {
+      return new Response(JSON.stringify({ ...result, ticketId, language }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' }
       });

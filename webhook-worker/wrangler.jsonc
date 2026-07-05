@@ -4,6 +4,7 @@
  */
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
+	"account_id": "7368932f6f72c638b7418c6a49ceeaba",
 	"name": "webhook-worker",
 	"main": "src/index.ts",
 	"compatibility_date": "2026-05-03",
