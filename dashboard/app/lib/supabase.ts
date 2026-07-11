@@ -1,9 +1,10 @@
 import { createClient } from '@supabase/supabase-js'
 
+// רץ בצד שרת בלבד (Server Components / Server Actions) — המפתח עוקף RLS ואסור שיגיע לדפדפן
 export function createSupabaseClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    process.env.SUPABASE_SECRET_KEY!
   )
 }
 
