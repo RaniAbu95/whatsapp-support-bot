@@ -1,6 +1,9 @@
 import Link from 'next/link'
 import { getMonthlyReport } from '@/app/actions'
 
+// הדוח חייב להיות מחושב בכל בקשה — לא בזמן build
+export const dynamic = 'force-dynamic'
+
 const LANGUAGE_NAMES: Record<string, string> = {
   'he': '🇮🇱 עברית',
   'en': '🇺🇸 English',
