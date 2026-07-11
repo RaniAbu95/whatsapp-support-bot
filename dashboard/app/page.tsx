@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { createSupabaseClient, type Ticket, type TicketStatus } from './lib/supabase'
+import { logout } from './login/actions'
 
 const STATUS_LABELS: Record<TicketStatus, string> = {
   open: 'פתוח',
@@ -55,6 +56,14 @@ export default async function Page({
             📊 דוח חודשי
           </Link>
           <span className="text-sm text-gray-500">{tickets?.length ?? 0} פניות</span>
+          <form action={logout}>
+            <button
+              type="submit"
+              className="px-3 py-2 rounded-lg text-sm text-gray-500 hover:bg-gray-100 transition-colors"
+            >
+              התנתק
+            </button>
+          </form>
         </div>
       </div>
 
