@@ -17,7 +17,12 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="he" dir="rtl" className={`h-full ${heebo.variable}`}>
-      <body className="min-h-full">{children}</body>
+      <body className="min-h-full">
+        <div className="app-backdrop" aria-hidden="true">
+          <div className="blob-mid" />
+        </div>
+        {children}
+      </body>
     </html>
   )
 }

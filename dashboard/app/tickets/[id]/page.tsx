@@ -18,8 +18,8 @@ const STATUS_BADGE: Record<TicketStatus, string> = {
 }
 
 const ROLE_BUBBLE: Record<Message['role'], string> = {
-  user: 'bg-gray-100 text-gray-900',
-  assistant: 'bg-gradient-to-br from-indigo-500 to-indigo-600 text-white',
+  user: 'bg-white/80 text-gray-900',
+  assistant: 'bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 text-white',
   agent: 'bg-gradient-to-br from-green-500 to-emerald-600 text-white',
 }
 
@@ -54,14 +54,16 @@ export default async function TicketPage({
       <div className="flex items-center gap-4 mb-6">
         <Link
           href="/"
-          className="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-gray-100 text-gray-400 hover:text-indigo-600 hover:border-indigo-200 shadow-sm transition-colors shrink-0"
+          className="w-9 h-9 flex items-center justify-center rounded-xl glass-panel text-gray-400 hover:text-indigo-600 hover:shadow-md transition-all shrink-0"
           aria-label="חזור לרשימה"
         >
           ←
         </Link>
         <div className="flex-1">
           <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-xl font-bold text-gray-900">{ticket.wa_phone}</h1>
+            <h1 className="text-xl font-extrabold bg-gradient-to-l from-indigo-700 via-purple-700 to-pink-600 bg-clip-text text-transparent">
+              {ticket.wa_phone}
+            </h1>
             <span
               className={`inline-flex items-center px-3 py-0.5 rounded-full text-xs font-semibold ${
                 STATUS_BADGE[ticket.status as TicketStatus] ?? 'bg-gray-100 text-gray-800'
@@ -77,7 +79,7 @@ export default async function TicketPage({
       </div>
 
       {/* Messages */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm shadow-gray-900/[0.03] p-4 space-y-4 min-h-[300px]">
+      <div className="glass-panel rounded-2xl p-4 space-y-4 min-h-[300px]">
         {!messages || messages.length === 0 ? (
           <div className="text-center py-12 text-gray-400 text-sm">אין הודעות בפנייה זו</div>
         ) : (

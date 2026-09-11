@@ -35,7 +35,7 @@ export default function SendMessageForm({ ticketId }: { ticketId: string }) {
           {error}
         </div>
       )}
-      <div className="flex gap-3 items-end bg-white rounded-2xl border border-gray-100 shadow-sm shadow-gray-900/[0.03] p-2 pr-2">
+      <div className="flex gap-3 items-end glass-panel rounded-2xl p-2 pr-2">
         <textarea
           value={content}
           onChange={(e) => setContent(e.target.value)}
@@ -48,7 +48,7 @@ export default function SendMessageForm({ ticketId }: { ticketId: string }) {
         <button
           onClick={handleSubmit}
           disabled={isPending || !content.trim()}
-          className="px-5 py-3 bg-indigo-600 text-white text-sm font-medium rounded-xl hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0 shadow-sm shadow-indigo-600/20"
+          className="px-5 py-3 bg-gradient-to-l from-indigo-600 via-purple-600 to-pink-500 text-white text-sm font-medium rounded-xl hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed transition-all shrink-0 shadow-lg shadow-purple-600/20"
         >
           {isPending ? 'שולח...' : 'שלח תשובה'}
         </button>

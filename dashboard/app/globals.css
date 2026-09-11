@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f6f7fb;
+  --background: #f5f4fd;
   --foreground: #171717;
 }
 
@@ -15,10 +15,7 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-heebo), Arial, Helvetica, sans-serif;
-  background-image:
-    radial-gradient(circle at 12% 0%, rgba(99, 102, 241, 0.08), transparent 45%),
-    radial-gradient(circle at 100% 20%, rgba(168, 85, 247, 0.06), transparent 40%);
-  background-attachment: fixed;
+  min-height: 100vh;
 }
 
 * {
@@ -34,4 +31,77 @@ body {
 ::-webkit-scrollbar-thumb {
   background-color: #d1d5db;
   border-radius: 9999px;
+}
+
+/* Bold gradient glass background */
+.app-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  background: linear-gradient(135deg, #f5f4fd 0%, #eef1fc 45%, #fdf2fa 100%);
+}
+
+.app-backdrop::before,
+.app-backdrop::after {
+  content: "";
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(80px);
+  opacity: 0.55;
+  animation: float-blob 22s ease-in-out infinite;
+}
+
+.app-backdrop::before {
+  width: 32rem;
+  height: 32rem;
+  top: -10rem;
+  right: -8rem;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.55), transparent 70%);
+}
+
+.app-backdrop::after {
+  width: 28rem;
+  height: 28rem;
+  bottom: -8rem;
+  left: -6rem;
+  background: radial-gradient(circle, rgba(236, 72, 153, 0.45), transparent 70%);
+  animation-delay: -11s;
+  animation-direction: reverse;
+}
+
+.app-backdrop .blob-mid {
+  position: absolute;
+  top: 30%;
+  left: 50%;
+  width: 26rem;
+  height: 26rem;
+  border-radius: 9999px;
+  transform: translateX(-50%);
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.3), transparent 70%);
+  filter: blur(90px);
+  opacity: 0.5;
+  animation: float-blob 26s ease-in-out infinite;
+  animation-delay: -6s;
+}
+
+@keyframes float-blob {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(3%, 6%) scale(1.08); }
+  66% { transform: translate(-4%, -3%) scale(0.94); }
+}
+
+.glass-panel {
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-backdrop::before,
+  .app-backdrop::after,
+  .app-backdrop .blob-mid {
+    animation: none;
+  }
 }
