@@ -29,13 +29,13 @@ export default function SendMessageForm({ ticketId }: { ticketId: string }) {
   }
 
   return (
-    <div className="border-t border-gray-200 pt-4 mt-4">
+    <div className="mt-4">
       {error && (
-        <div className="mb-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+        <div className="mb-3 text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2">
           {error}
         </div>
       )}
-      <div className="flex gap-3 items-end">
+      <div className="flex gap-3 items-end bg-white rounded-2xl border border-gray-100 shadow-sm shadow-gray-900/[0.03] p-2 pr-2">
         <textarea
           value={content}
           onChange={(e) => setContent(e.target.value)}
@@ -43,12 +43,12 @@ export default function SendMessageForm({ ticketId }: { ticketId: string }) {
           placeholder="הקלד תשובה... (Ctrl+Enter לשליחה)"
           rows={3}
           disabled={isPending}
-          className="flex-1 border border-gray-300 rounded-xl px-4 py-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-60 bg-white"
+          className="flex-1 rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none disabled:opacity-60 bg-transparent"
         />
         <button
           onClick={handleSubmit}
           disabled={isPending || !content.trim()}
-          className="px-5 py-3 bg-indigo-600 text-white text-sm font-medium rounded-xl hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shrink-0"
+          className="px-5 py-3 bg-indigo-600 text-white text-sm font-medium rounded-xl hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0 shadow-sm shadow-indigo-600/20"
         >
           {isPending ? 'שולח...' : 'שלח תשובה'}
         </button>

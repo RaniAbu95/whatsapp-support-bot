@@ -1,5 +1,11 @@
 import type { Metadata } from 'next'
+import { Heebo } from 'next/font/google'
 import './globals.css'
+
+const heebo = Heebo({
+  subsets: ['hebrew', 'latin'],
+  variable: '--font-heebo',
+})
 
 export const metadata: Metadata = {
   title: 'לוח בקרת תמיכה',
@@ -10,8 +16,8 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="he" dir="rtl" className="h-full">
-      <body className="min-h-full bg-gray-50">{children}</body>
+    <html lang="he" dir="rtl" className={`h-full ${heebo.variable}`}>
+      <body className="min-h-full">{children}</body>
     </html>
   )
 }

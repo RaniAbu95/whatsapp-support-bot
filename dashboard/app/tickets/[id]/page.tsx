@@ -11,16 +11,16 @@ const STATUS_LABELS: Record<TicketStatus, string> = {
 }
 
 const STATUS_BADGE: Record<TicketStatus, string> = {
-  open: 'bg-blue-100 text-blue-800',
-  escalated: 'bg-red-100 text-red-800',
-  auto_resolved: 'bg-green-100 text-green-800',
-  closed: 'bg-gray-100 text-gray-800',
+  open: 'bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-200',
+  escalated: 'bg-red-50 text-red-700 ring-1 ring-inset ring-red-200',
+  auto_resolved: 'bg-green-50 text-green-700 ring-1 ring-inset ring-green-200',
+  closed: 'bg-gray-100 text-gray-600 ring-1 ring-inset ring-gray-200',
 }
 
 const ROLE_BUBBLE: Record<Message['role'], string> = {
   user: 'bg-gray-100 text-gray-900',
-  assistant: 'bg-indigo-100 text-indigo-900',
-  agent: 'bg-green-100 text-green-900',
+  assistant: 'bg-gradient-to-br from-indigo-500 to-indigo-600 text-white',
+  agent: 'bg-gradient-to-br from-green-500 to-emerald-600 text-white',
 }
 
 const ROLE_LABEL: Record<Message['role'], string> = {
@@ -49,12 +49,12 @@ export default async function TicketPage({
   if (!ticket) notFound()
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8">
+    <div className="max-w-3xl mx-auto px-4 py-8 md:py-10">
       {/* Header */}
       <div className="flex items-center gap-4 mb-6">
         <Link
           href="/"
-          className="text-gray-400 hover:text-gray-600 transition-colors text-lg leading-none"
+          className="w-9 h-9 flex items-center justify-center rounded-xl bg-white border border-gray-100 text-gray-400 hover:text-indigo-600 hover:border-indigo-200 shadow-sm transition-colors shrink-0"
           aria-label="חזור לרשימה"
         >
           ←
@@ -77,7 +77,7 @@ export default async function TicketPage({
       </div>
 
       {/* Messages */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-4 space-y-4 min-h-[300px]">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm shadow-gray-900/[0.03] p-4 space-y-4 min-h-[300px]">
         {!messages || messages.length === 0 ? (
           <div className="text-center py-12 text-gray-400 text-sm">אין הודעות בפנייה זו</div>
         ) : (
@@ -110,17 +110,21 @@ function MessageBubble({ message }: { message: Message }) {
 
   return (
     <div className={`flex ${isUser ? 'justify-start' : 'justify-end'}`}>
-      <div className={`max-w-[75%] rounded-2xl px-4 py-3 ${ROLE_BUBBLE[message.role]}`}>
+      <div
+        className={`max-w-[75%] rounded-2xl px-4 py-3 shadow-sm ${
+          isUser ? 'rounded-tr-md' : 'rounded-tl-md'
+        } ${ROLE_BUBBLE[message.role]}`}
+      >
         <div className="flex items-center gap-2 mb-1 flex-wrap">
-          <span className="text-xs font-semibold opacity-60">{ROLE_LABEL[message.role]}</span>
-          <span className="text-xs opacity-40">
+          <span className="text-xs font-semibold opacity-70">{ROLE_LABEL[message.role]}</span>
+          <span className="text-xs opacity-50">
             {new Date(message.created_at).toLocaleTimeString('he-IL', {
               hour: '2-digit',
               minute: '2-digit',
             })}
           </span>
           {message.language && (isUser || message.role === 'assistant') && (
-            <span className="text-xs px-1.5 py-0.5 rounded bg-opacity-50 bg-purple-200 text-purple-800">
+            <span className="text-xs px-1.5 py-0.5 rounded-md bg-black/10 font-medium">
               {languageNames[message.language] || message.language}
             </span>
           )}
@@ -137,9 +141,13 @@ function MessageBubble({ message }: { message: Message }) {
 function ConfidenceBadge({ score }: { score: number }) {
   const pct = Math.round(score * 100)
   const color =
-    pct >= 80 ? 'bg-green-200 text-green-800' : pct >= 50 ? 'bg-yellow-200 text-yellow-800' : 'bg-red-200 text-red-800'
+    pct >= 80
+      ? 'bg-green-400/25 text-green-50'
+      : pct >= 50
+        ? 'bg-yellow-400/25 text-yellow-50'
+        : 'bg-red-400/25 text-red-50'
   return (
-    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold ${color}`}>
+    <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-bold ${color}`}>
       {pct}%
     </span>
   )
