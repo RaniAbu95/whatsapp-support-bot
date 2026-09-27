@@ -23,6 +23,8 @@ const STATUS_DOT: Record<TicketStatus, string> = {
   closed: 'bg-gray-400',
 }
 
+const TICKETS_LIMIT = 200
+
 const FILTERS = [
   { value: 'all', label: 'הכל' },
   { value: 'open', label: 'פתוח' },
@@ -40,16 +42,18 @@ export default async function Page({
   const currentStatus = status || 'all'
   const supabase = createSupabaseClient()
 
+  // רק העמודות שמוצגות + הגבלת כמות, כדי שהעמוד לא יאט ככל שהטבלה גדלה
   let query = supabase
     .from('tickets')
-    .select('*')
+    .select('id, wa_phone, status, created_at', { count: 'exact' })
     .order('created_at', { ascending: false })
+    .limit(TICKETS_LIMIT)
 
   if (currentStatus !== 'all') {
     query = query.eq('status', currentStatus)
   }
 
-  const { data: tickets, error } = await query
+  const { data: tickets, count, error } = await query
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 md:py-10">
@@ -62,7 +66,7 @@ export default async function Page({
             <h1 className="text-2xl font-extrabold bg-gradient-to-l from-indigo-700 via-purple-700 to-pink-600 bg-clip-text text-transparent leading-tight">
               פניות תמיכה
             </h1>
-            <p className="text-xs text-gray-500">{tickets?.length ?? 0} פניות בסה&quot;כ</p>
+            <p className="text-xs text-gray-500">{count ?? tickets?.length ?? 0} פניות בסה&quot;כ</p>
           </div>
         </div>
         <div className="flex items-center gap-2">

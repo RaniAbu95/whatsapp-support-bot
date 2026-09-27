@@ -58,7 +58,7 @@ export async function getMonthlyReport() {
 
   const { data: messages } = await supabase
     .from('messages')
-    .select('*')
+    .select('role, confidence, language')
     .gte('created_at', monthStart.toISOString())
     .lt('created_at', monthEnd.toISOString())
 
