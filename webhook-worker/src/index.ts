@@ -308,41 +308,60 @@ export default {
       const phone = body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.from || 'test-user';
       if (!message) return new Response('OK', { status: 200 });
 
-      // Detect language
-      const language = await detectLanguage(message, env.GEMINI_API_KEY);
+      let language = 'he';
+      try {
+        // Detect language
+        language = await detectLanguage(message, env.GEMINI_API_KEY);
 
-      // שמור כרטיס + הודעת לקוח
-      const ticketId = await getOrCreateTicket(env, phone);
-      await saveMessage(env, ticketId, 'user', message, undefined, language);
+        // שמור כרטיס + הודעת לקוח
+        const ticketId = await getOrCreateTicket(env, phone);
+        await saveMessage(env, ticketId, 'user', message, undefined, language);
 
-      // שאל את Gemini
-      const knowledgeBase = await getKnowledgeBase(env, message);
-      const result = await askAI(message, knowledgeBase, env, language);
+        // שאל את Gemini
+        const knowledgeBase = await getKnowledgeBase(env, message);
+        const result = await askAI(message, knowledgeBase, env, language);
 
-      // שמור תשובה ושלח בחזרה ב-WhatsApp
-      await saveMessage(env, ticketId, 'assistant', result.answer, result.confidence, language);
+        // שמור תשובה ושלח בחזרה ב-WhatsApp
+        await saveMessage(env, ticketId, 'assistant', result.answer, result.confidence, language);
 
-      if (result.confidence < 0.7) {
-        const escalationMessages: {[key: string]: string} = {
-          'he': 'מעביר אותך לנציג, ניצור קשר בקרוב.',
-          'ar': 'سيتم تحويلك إلى وكيل، سنتصل بك قريبا.',
-          'en': 'Transferring you to an agent, we\'ll be in touch soon.',
-          'es': 'Transfiriéndote a un agente, nos pondremos en contacto pronto.',
-          'fr': 'Transfert à un agent, nous vous recontacterons bientôt.',
+        if (result.confidence < 0.7) {
+          const escalationMessages: {[key: string]: string} = {
+            'he': 'מעביר אותך לנציג, ניצור קשר בקרוב.',
+            'ar': 'سيتم تحويلك إلى وكيل، سنتصل بك قريبا.',
+            'en': 'Transferring you to an agent, we\'ll be in touch soon.',
+            'es': 'Transfiriéndote a un agente, nos pondremos en contacto pronto.',
+            'fr': 'Transfert à un agent, nous vous recontacterons bientôt.',
+          };
+          const escalationMessage = escalationMessages[language] || escalationMessages['en'];
+          await sendWhatsAppMessage(env, phone, escalationMessage);
+          await supabase(env, `tickets?id=eq.${ticketId}`, 'PATCH', { status: 'escalated' });
+          console.log(`Ticket ${ticketId} escalated — confidence: ${result.confidence}`);
+        } else {
+          await sendWhatsAppMessage(env, phone, result.answer);
+          await supabase(env, `tickets?id=eq.${ticketId}`, 'PATCH', { status: 'auto_resolved' });
+        }
+
+        return new Response(JSON.stringify({ ...result, ticketId, language }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      } catch (error) {
+        console.error('[HANDLER ERROR]', error);
+        const errorMessages: {[key: string]: string} = {
+          'he': 'מצטערים, נתקלנו בתקלה זמנית. ניצור איתך קשר בהקדם.',
+          'ar': 'عذرا، واجهنا خللا مؤقتا. سنتواصل معك قريبا.',
+          'en': 'Sorry, we ran into a temporary issue. We\'ll get back to you soon.',
+          'es': 'Lo sentimos, tuvimos un problema temporal. Nos pondremos en contacto pronto.',
+          'fr': 'Désolé, nous avons rencontré un problème temporaire. Nous vous recontacterons bientôt.',
         };
-        const escalationMessage = escalationMessages[language] || escalationMessages['en'];
-        await sendWhatsAppMessage(env, phone, escalationMessage);
-        await supabase(env, `tickets?id=eq.${ticketId}`, 'PATCH', { status: 'escalated' });
-        console.log(`Ticket ${ticketId} escalated — confidence: ${result.confidence}`);
-      } else {
-        await sendWhatsAppMessage(env, phone, result.answer);
-        await supabase(env, `tickets?id=eq.${ticketId}`, 'PATCH', { status: 'auto_resolved' });
+        try {
+          await sendWhatsAppMessage(env, phone, errorMessages[language] || errorMessages['en']);
+        } catch (notifyError) {
+          console.error('[NOTIFY ERROR]', notifyError);
+        }
+        // 200 כדי ש-Meta לא ישלח את ה-webhook שוב (מונע הודעות כפולות)
+        return new Response('OK', { status: 200 });
       }
-
-      return new Response(JSON.stringify({ ...result, ticketId, language }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' }
-      });
     }
 
     return new Response('Method not allowed', { status: 405 });
