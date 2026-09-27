@@ -5,7 +5,7 @@
 
 ## כתובות פרודקשן
 - **Dashboard (נציגים):** https://rani-support.com
-- **Webhook Worker:** https://webhook-worker.rani-aburaia.workers.dev
+- **Webhook Worker:** https://webhook-worker.raniaburaia.workers.dev
 
 ## Tech Stack
 - Cloudflare Workers (Webhook + API)
