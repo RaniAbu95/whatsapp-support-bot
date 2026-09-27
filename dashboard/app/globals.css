@@ -100,6 +100,13 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.6);
 }
 
+/* רקע עדין לחלון הצ'אט — נקודות קטנות כמו טפט של וואטסאפ */
+.chat-wallpaper {
+  background-color: rgba(243, 241, 252, 0.75);
+  background-image: radial-gradient(rgba(99, 102, 241, 0.09) 1px, transparent 1px);
+  background-size: 18px 18px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .app-backdrop::before,
   .app-backdrop::after,
