@@ -4,7 +4,8 @@
 מערכת תמיכת לקוחות: WhatsApp → Gemini → Supabase → Dashboard.
 
 ## כתובות פרודקשן
-- **Dashboard (נציגים):** https://rani-support.com
+- **Dashboard (נציגים):** https://whatsapp.rani-support.com
+- **פורטל (כל האפליקציות):** https://rani-support.com
 - **Webhook Worker:** https://webhook-worker.raniaburaia.workers.dev
 
 ## Tech Stack

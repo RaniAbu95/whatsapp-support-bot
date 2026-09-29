@@ -18,6 +18,11 @@ export default async function proxy(request: NextRequest) {
     return NextResponse.next()
   }
 
+  // מבקר לא מחובר בכתובת הראשית רואה את דף הנחיתה, בלי לשנות את ה-URL
+  if (pathname === '/') {
+    return NextResponse.rewrite(new URL('/landing', request.url))
+  }
+
   return NextResponse.redirect(new URL('/login', request.url))
 }
 
