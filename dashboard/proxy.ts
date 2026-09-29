@@ -1,8 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { SESSION_COOKIE, verifySessionToken } from './app/lib/auth'
 
-// עמודים ציבוריים — privacy חייב להישאר פתוח (דרישה של Meta)
-const PUBLIC_PATHS = ['/login', '/privacy']
+// עמודים ציבוריים — privacy חייב להישאר פתוח (דרישה של Meta), landing הוא דף הנחיתה
+const PUBLIC_PATHS = ['/login', '/privacy', '/landing']
 
 export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
