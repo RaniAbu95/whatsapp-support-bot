@@ -51,6 +51,10 @@ const STATS = [
   { value: '~$0.30', label: 'עלות חודשית ל-100 פניות ביום' },
 ]
 
+const DEMO_PHONE_DISPLAY = '052-807-3528'
+const DEMO_WHATSAPP_URL = 'https://wa.me/972528073528'
+const CONTACT_WHATSAPP_URL = 'https://wa.me/972524847811'
+
 const gradientText =
   'bg-gradient-to-l from-indigo-700 via-purple-700 to-pink-600 bg-clip-text text-transparent'
 const gradientButton =
@@ -91,6 +95,14 @@ export default function LandingPage() {
               ומעביר לנציג אנושי רק כשבאמת צריך.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
+              <a
+                href={DEMO_WHATSAPP_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-xl bg-emerald-500 px-6 py-3 text-sm font-semibold text-white hover:bg-emerald-600 active:scale-[0.99] transition-all shadow-lg shadow-emerald-500/30"
+              >
+                💬 נסה עכשיו ב-WhatsApp
+              </a>
               <a href="#how" className={`${gradientButton} px-6 py-3 text-sm`}>
                 איך זה עובד
               </a>
@@ -190,13 +202,43 @@ export default function LandingPage() {
           </div>
         </section>
 
+        {/* Try it */}
+        <section id="try" className="max-w-4xl mx-auto px-4 pb-24 scroll-mt-8">
+          <div className="glass-panel rounded-3xl p-8 md:p-10 shadow-xl shadow-indigo-950/5 flex flex-col md:flex-row items-center gap-8">
+            <div className="w-20 h-20 shrink-0 rounded-2xl bg-emerald-500 flex items-center justify-center text-4xl shadow-lg shadow-emerald-500/30">
+              📱
+            </div>
+            <div className="flex-1 text-center md:text-right">
+              <h2 className="text-2xl md:text-3xl font-extrabold text-gray-900">
+                רוצה לראות את זה <span className={gradientText}>בפעולה?</span>
+              </h2>
+              <p className="mt-3 text-gray-600 leading-relaxed">
+                שלח הודעת WhatsApp למספר הדמו ושאל כל שאלה — בעברית, בערבית או באנגלית. הבוט יענה לך תוך שניות.
+              </p>
+              <p className="mt-3 text-2xl font-extrabold text-gray-900 tracking-wide" dir="ltr">
+                {DEMO_PHONE_DISPLAY}
+              </p>
+            </div>
+            <a
+              href={DEMO_WHATSAPP_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="shrink-0 rounded-xl bg-emerald-500 px-7 py-3.5 text-sm font-bold text-white hover:bg-emerald-600 active:scale-[0.99] transition-all shadow-lg shadow-emerald-500/30"
+            >
+              שלח הודעה ב-WhatsApp
+            </a>
+          </div>
+        </section>
+
         {/* CTA */}
         <section className="max-w-4xl mx-auto px-4 pb-20">
           <div className="relative overflow-hidden rounded-3xl bg-gradient-to-l from-indigo-600 via-purple-600 to-pink-500 p-10 text-center text-white shadow-2xl shadow-purple-600/30">
             <h2 className="text-3xl font-extrabold">מוכן לתת ללקוחות מענה מיידי?</h2>
             <p className="mt-3 text-white/85">דבר איתנו ונחבר את הבוט למספר ה-WhatsApp של העסק שלך.</p>
             <a
-              href="mailto:raniaburaia@tovtech.org"
+              href={CONTACT_WHATSAPP_URL}
+              target="_blank"
+              rel="noopener noreferrer"
               className="mt-7 inline-block rounded-xl bg-white px-7 py-3 text-sm font-bold text-purple-700 hover:bg-white/90 transition-colors shadow-lg"
             >
               צור קשר
