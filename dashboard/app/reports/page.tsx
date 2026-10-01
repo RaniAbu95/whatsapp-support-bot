@@ -25,7 +25,7 @@ export default async function ReportsPage() {
       {/* Header */}
       <div className="mb-8">
         <Link
-          href="/"
+          href="/dashboard"
           className="w-9 h-9 flex items-center justify-center rounded-xl glass-panel text-gray-400 hover:text-indigo-600 hover:shadow-md transition-all mb-4"
           aria-label="חזור לרשימה"
         >

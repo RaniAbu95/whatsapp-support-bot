@@ -21,7 +21,7 @@ export async function login(formData: FormData) {
     path: '/',
     maxAge: SESSION_TTL_MS / 1000,
   })
-  redirect('/')
+  redirect('/dashboard')
 }
 
 export async function logout() {

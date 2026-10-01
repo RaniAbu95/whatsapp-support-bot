@@ -59,7 +59,7 @@ export default async function TicketPage({
         {/* Header */}
         <header className="flex items-center gap-3 px-3 md:px-4 py-3 bg-white/90 border-b border-gray-200/60">
           <Link
-            href="/"
+            href="/dashboard"
             className="w-9 h-9 flex items-center justify-center rounded-full text-gray-500 hover:bg-indigo-50 hover:text-indigo-600 transition-colors shrink-0"
             aria-label="חזור לרשימה"
           >

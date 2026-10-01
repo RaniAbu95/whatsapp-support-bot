@@ -1,196 +1,258 @@
+import type { Metadata } from 'next'
 import Link from 'next/link'
-import { createSupabaseClient, type Message, type Ticket, type TicketStatus } from './lib/supabase'
-import { logout } from './login/actions'
-import { dayKey, formatDayLabel, formatListTime, formatPhone } from './lib/format'
-import { STATUS_BADGE, STATUS_DOT, STATUS_LABELS, needsAgent } from './lib/status'
-import Avatar from './components/avatar'
 
-const TICKETS_LIMIT = 200
-// מספיק הודעות אחרונות כדי למצוא את ההודעה האחרונה של הלקוח לתצוגה מקדימה
-const PREVIEW_MESSAGES = 4
+export const metadata: Metadata = {
+  title: 'Rani Support — תמיכת לקוחות חכמה ב-WhatsApp',
+  description: 'בוט AI שעונה ללקוחות שלך ב-WhatsApp מתוך מאגר הידע שלך, ומעביר לנציג אנושי כשצריך.',
+}
 
-const FILTERS = [
-  { value: 'all', label: 'הכל' },
-  { value: 'open', label: 'פתוח' },
-  { value: 'escalated', label: 'לא נפתר' },
-  { value: 'auto_resolved', label: 'נפתר אוטומטית' },
-  { value: 'closed', label: 'סגור' },
+const FEATURES = [
+  {
+    icon: '⚡',
+    title: 'מענה מיידי 24/7',
+    text: 'הלקוח שואל ב-WhatsApp ומקבל תשובה תוך שניות — גם בלילה, גם בסופ"ש.',
+  },
+  {
+    icon: '📚',
+    title: 'עונה מתוך מאגר הידע שלך',
+    text: 'הבוט מבוסס על Knowledge Base שאתה מגדיר, כך שהתשובות מדויקות ותואמות את העסק.',
+  },
+  {
+    icon: '🧑‍💼',
+    title: 'העברה חכמה לנציג',
+    text: 'כשהבוט לא בטוח בתשובה (ביטחון מתחת ל-70%) — הפנייה עוברת אוטומטית לנציג אנושי.',
+  },
+  {
+    icon: '🌍',
+    title: 'מדבר בשפת הלקוח',
+    text: 'זיהוי שפה אוטומטי — עברית, ערבית, אנגלית ועוד. כל לקוח מקבל תשובה בשפה שלו.',
+  },
+  {
+    icon: '💬',
+    title: 'דשבורד לנציגים',
+    text: 'כל השיחות במקום אחד, בתצוגת צ\'אט מוכרת. הנציג עונה ישירות ללקוח מהדשבורד.',
+  },
+  {
+    icon: '📊',
+    title: 'דוחות ותובנות',
+    text: 'כמה פניות נפתרו אוטומטית, כמה הועברו לנציג, ומה הלקוחות שואלים הכי הרבה.',
+  },
 ]
 
-const ROLE_PREFIX: Record<Message['role'], string> = {
-  user: '',
-  assistant: 'בוט: ',
-  agent: 'נציג: ',
-}
+const STEPS = [
+  { n: '1', title: 'הלקוח שולח הודעה', text: 'ישירות למספר ה-WhatsApp של העסק.' },
+  { n: '2', title: 'ה-AI מחפש תשובה', text: 'Gemini סורק את מאגר הידע ומחשב רמת ביטחון.' },
+  { n: '3', title: 'תשובה או נציג', text: 'ביטחון גבוה — תשובה אוטומטית. נמוך — הפנייה עוברת לנציג.' },
+]
 
-type TicketRow = Ticket & {
-  messages: Pick<Message, 'role' | 'content' | 'created_at'>[]
-}
+const STATS = [
+  { value: '< 5 שניות', label: 'זמן מענה ממוצע' },
+  { value: '24/7', label: 'זמינות' },
+  { value: '~$0.30', label: 'עלות חודשית ל-100 פניות ביום' },
+]
 
-export default async function Page({
-  searchParams,
-}: {
-  searchParams: Promise<{ status?: string }>
-}) {
-  const { status } = await searchParams
-  const currentStatus = status || 'all'
-  const supabase = createSupabaseClient()
+const DEMO_PHONE_DISPLAY = '052-807-3528'
+const DEMO_WHATSAPP_URL = 'https://wa.me/972528073528'
+const CONTACT_WHATSAPP_URL = 'https://wa.me/972524847811'
 
-  // רק העמודות שמוצגות + הגבלת כמות, כדי שהעמוד לא יאט ככל שהטבלה גדלה.
-  // ההודעות האחרונות של כל פנייה נשלפות באותה שאילתה לתצוגה המקדימה
-  let query = supabase
-    .from('tickets')
-    .select('id, wa_phone, status, created_at, messages(role, content, created_at)', { count: 'exact' })
-    .order('created_at', { ascending: false })
-    .order('created_at', { referencedTable: 'messages', ascending: false })
-    .limit(PREVIEW_MESSAGES, { referencedTable: 'messages' })
-    .limit(TICKETS_LIMIT)
+const gradientText =
+  'bg-gradient-to-l from-indigo-700 via-purple-700 to-pink-600 bg-clip-text text-transparent'
+const gradientButton =
+  'rounded-xl bg-gradient-to-l from-indigo-600 via-purple-600 to-pink-500 text-white font-semibold hover:brightness-110 active:scale-[0.99] transition-all shadow-lg shadow-purple-600/25'
 
-  if (currentStatus !== 'all') {
-    query = query.eq('status', currentStatus)
-  }
-
-  const { data, count, error } = await query
-  const tickets = (data ?? []) as TicketRow[]
-
-  // קיבוץ לפי יום, כמו מפרידי התאריכים בצ'אט
-  const groups: { key: string; label: string; tickets: TicketRow[] }[] = []
-  for (const ticket of tickets) {
-    const key = dayKey(ticket.created_at)
-    const last = groups[groups.length - 1]
-    if (last?.key === key) last.tickets.push(ticket)
-    else groups.push({ key, label: formatDayLabel(ticket.created_at), tickets: [ticket] })
-  }
-
+export default function LandingPage() {
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8 md:py-10">
-      <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
-        <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center text-lg shadow-lg shadow-purple-500/25 ring-4 ring-white/50">
+    <div className="min-h-screen">
+      <header className="max-w-6xl mx-auto px-4 py-5 flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center text-lg shadow-lg shadow-purple-500/30">
             💬
           </div>
+          <span className="font-extrabold text-lg text-gray-900">Rani Support</span>
+        </div>
+        <Link
+          href="/login"
+          className="text-sm font-semibold text-indigo-700 hover:text-indigo-900 transition-colors"
+        >
+          כניסת נציגים ←
+        </Link>
+      </header>
+
+      <main>
+        {/* Hero */}
+        <section className="max-w-6xl mx-auto px-4 pt-10 pb-20 grid gap-12 md:grid-cols-2 items-center">
           <div>
-            <h1 className="text-2xl font-extrabold bg-gradient-to-l from-indigo-700 via-purple-700 to-pink-600 bg-clip-text text-transparent leading-tight">
-              פניות תמיכה
-            </h1>
-            <p className="text-xs text-gray-500">{count ?? tickets.length} פניות בסה&quot;כ</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Link
-            href="/reports"
-            className="px-4 py-2 rounded-xl glass-panel text-purple-700 hover:shadow-md transition-all text-sm font-semibold"
-          >
-            📊 דוח חודשי
-          </Link>
-          <form action={logout}>
-            <button
-              type="submit"
-              className="px-3.5 py-2 rounded-xl text-sm text-gray-500 hover:bg-white/60 transition-colors"
-            >
-              התנתק
-            </button>
-          </form>
-        </div>
-      </div>
-
-      <div className="glass-panel rounded-3xl shadow-xl shadow-purple-500/5 overflow-clip">
-        {/* סינון לפי סטטוס */}
-        <div className="flex gap-1.5 p-3 border-b border-gray-200/60 overflow-x-auto">
-          {FILTERS.map((f) => (
-            <Link
-              key={f.value}
-              href={f.value === 'all' ? '/' : `/?status=${f.value}`}
-              className={`px-3.5 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
-                currentStatus === f.value
-                  ? 'bg-gradient-to-l from-indigo-600 to-purple-600 text-white shadow-md shadow-purple-600/25'
-                  : 'bg-white/60 text-gray-600 hover:bg-white hover:text-gray-900'
-              }`}
-            >
-              {f.label}
-            </Link>
-          ))}
-        </div>
-
-        {error ? (
-          <div className="m-4 rounded-xl bg-red-50/80 border border-red-100 p-4 text-red-700">
-            שגיאה בטעינת פניות
-          </div>
-        ) : tickets.length === 0 ? (
-          <div className="text-center py-20 text-gray-400">
-            <div className="text-3xl mb-2">🗂️</div>
-            אין פניות להצגה
-          </div>
-        ) : (
-          groups.map((group) => (
-            <section key={group.key}>
-              <div className="sticky top-0 z-10 px-5 py-1.5 text-xs font-semibold text-gray-500 bg-white/85 border-b border-gray-200/50">
-                {group.label}
-              </div>
-              <ul className="divide-y divide-gray-200/50">
-                {group.tickets.map((ticket) => (
-                  <li key={ticket.id}>
-                    <ConversationRow ticket={ticket} />
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ))
-        )}
-      </div>
-    </div>
-  )
-}
-
-function ConversationRow({ ticket }: { ticket: TicketRow }) {
-  const status = ticket.status as TicketStatus
-  const lastMessage = ticket.messages[0]
-  // עדיפות להודעה של הלקוח — היא מסבירה על מה הפנייה
-  const preview = ticket.messages.find((m) => m.role === 'user') ?? lastMessage
-  const urgent = needsAgent(status)
-
-  return (
-    <Link
-      href={`/tickets/${ticket.id}`}
-      className="group flex items-center gap-3.5 px-4 md:px-5 hover:bg-indigo-50/60 transition-colors"
-    >
-      <Avatar phone={ticket.wa_phone} dotClassName={STATUS_DOT[status] ?? 'bg-gray-400'} />
-
-      <div className="flex-1 min-w-0 py-3.5">
-        <div className="flex items-baseline justify-between gap-3">
-          <div className="flex items-baseline gap-2 min-w-0">
-            <span dir="ltr" className="font-semibold text-gray-900 truncate group-hover:text-indigo-700 transition-colors">
-              {formatPhone(ticket.wa_phone)}
+            <span className="inline-block mb-4 rounded-full glass-panel px-3.5 py-1 text-xs font-semibold text-purple-700 shadow-sm">
+              ✨ מבוסס Gemini AI
             </span>
-            <span className="text-xs text-gray-400 shrink-0">#{ticket.id}</span>
+            <h1 className="text-4xl md:text-5xl font-extrabold leading-tight text-gray-900">
+              תמיכת לקוחות ב-WhatsApp
+              <br />
+              <span className={gradientText}>שעונה לבד.</span>
+            </h1>
+            <p className="mt-5 text-lg text-gray-600 leading-relaxed max-w-lg">
+              בוט AI שעונה ללקוחות שלך מתוך מאגר הידע של העסק, בשפה שלהם, תוך שניות —
+              ומעביר לנציג אנושי רק כשבאמת צריך.
+            </p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <a
+                href={DEMO_WHATSAPP_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-xl bg-emerald-500 px-6 py-3 text-sm font-semibold text-white hover:bg-emerald-600 active:scale-[0.99] transition-all shadow-lg shadow-emerald-500/30"
+              >
+                💬 נסה עכשיו ב-WhatsApp
+              </a>
+              <a href="#how" className={`${gradientButton} px-6 py-3 text-sm`}>
+                איך זה עובד
+              </a>
+              <Link
+                href="/login"
+                className="rounded-xl glass-panel px-6 py-3 text-sm font-semibold text-gray-800 hover:bg-white transition-colors shadow-sm"
+              >
+                לדשבורד הנציגים
+              </Link>
+            </div>
           </div>
-          <span className={`text-xs shrink-0 ${urgent ? 'text-red-600 font-semibold' : 'text-gray-400'}`}>
-            {formatListTime(lastMessage?.created_at ?? ticket.created_at)}
-          </span>
-        </div>
 
-        <div className="flex items-center justify-between gap-3 mt-1">
-          <p className={`text-sm truncate ${urgent ? 'text-gray-800' : 'text-gray-500'}`}>
-            {preview ? (
-              <>
-                {preview.role !== 'user' && (
-                  <span className="text-gray-400">{ROLE_PREFIX[preview.role]}</span>
-                )}
-                <bdi>{preview.content}</bdi>
-              </>
-            ) : (
-              <span className="italic text-gray-400">אין הודעות</span>
-            )}
-          </p>
-          <span
-            className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${
-              STATUS_BADGE[status] ?? 'bg-gray-100 text-gray-800'
-            }`}
-          >
-            {STATUS_LABELS[status] ?? ticket.status}
-          </span>
-        </div>
-      </div>
-    </Link>
+          {/* Chat mockup */}
+          <div className="relative">
+            <div className="absolute -inset-1 rounded-[2rem] bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 opacity-30 blur-xl" />
+            <div className="relative glass-panel rounded-[1.75rem] shadow-2xl shadow-indigo-950/10 overflow-hidden">
+              <div className="flex items-center gap-3 px-5 py-4 border-b border-white/60 bg-white/50">
+                <div className="w-9 h-9 rounded-full bg-emerald-500 flex items-center justify-center text-white text-sm font-bold">
+                  AI
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">שירות לקוחות</p>
+                  <p className="text-xs text-emerald-600">מחובר</p>
+                </div>
+              </div>
+              <div className="chat-wallpaper p-5 space-y-3 text-sm">
+                <div className="max-w-[80%] rounded-2xl rounded-tr-sm bg-white px-4 py-2.5 shadow-sm text-gray-800">
+                  היי, מה שעות הפעילות שלכם?
+                </div>
+                <div className="max-w-[80%] mr-auto rounded-2xl rounded-tl-sm bg-emerald-100 px-4 py-2.5 shadow-sm text-gray-800">
+                  היי! אנחנו פתוחים א׳–ה׳ 9:00–18:00 וביום ו׳ עד 13:00 😊
+                </div>
+                <div className="max-w-[80%] rounded-2xl rounded-tr-sm bg-white px-4 py-2.5 shadow-sm text-gray-800">
+                  Do you ship abroad?
+                </div>
+                <div className="max-w-[80%] mr-auto rounded-2xl rounded-tl-sm bg-emerald-100 px-4 py-2.5 shadow-sm text-gray-800">
+                  Yes! We ship worldwide. Delivery takes 7–14 business days.
+                </div>
+                <div className="flex justify-center pt-1">
+                  <span className="rounded-full bg-indigo-100 text-indigo-700 px-3 py-1 text-xs font-medium">
+                    שאלה מורכבת? מועבר לנציג 🧑‍💼
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Stats */}
+        <section className="max-w-4xl mx-auto px-4 pb-20">
+          <div className="glass-panel rounded-3xl shadow-xl shadow-indigo-950/5 grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x sm:divide-x-reverse divide-white/70">
+            {STATS.map((s) => (
+              <div key={s.label} className="p-6 text-center">
+                <p className={`text-3xl font-extrabold ${gradientText}`}>{s.value}</p>
+                <p className="mt-1 text-sm text-gray-500">{s.label}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Features */}
+        <section className="max-w-6xl mx-auto px-4 pb-24">
+          <h2 className="text-3xl font-extrabold text-center text-gray-900">
+            כל מה שצריך <span className={gradientText}>לתמיכה חכמה</span>
+          </h2>
+          <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {FEATURES.map((f) => (
+              <div
+                key={f.title}
+                className="glass-panel rounded-2xl p-6 shadow-lg shadow-indigo-950/5 hover:-translate-y-1 transition-transform"
+              >
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-100 to-pink-100 flex items-center justify-center text-2xl">
+                  {f.icon}
+                </div>
+                <h3 className="mt-4 font-bold text-gray-900">{f.title}</h3>
+                <p className="mt-2 text-sm text-gray-600 leading-relaxed">{f.text}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* How it works */}
+        <section id="how" className="max-w-5xl mx-auto px-4 pb-24 scroll-mt-8">
+          <h2 className="text-3xl font-extrabold text-center text-gray-900">איך זה עובד</h2>
+          <div className="mt-10 grid gap-5 md:grid-cols-3">
+            {STEPS.map((s) => (
+              <div key={s.n} className="glass-panel rounded-2xl p-6 shadow-lg shadow-indigo-950/5 text-center">
+                <div
+                  className={`w-12 h-12 mx-auto rounded-full ${gradientButton} flex items-center justify-center text-lg`}
+                >
+                  {s.n}
+                </div>
+                <h3 className="mt-4 font-bold text-gray-900">{s.title}</h3>
+                <p className="mt-2 text-sm text-gray-600 leading-relaxed">{s.text}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Try it */}
+        <section id="try" className="max-w-4xl mx-auto px-4 pb-24 scroll-mt-8">
+          <div className="glass-panel rounded-3xl p-8 md:p-10 shadow-xl shadow-indigo-950/5 flex flex-col md:flex-row items-center gap-8">
+            <div className="w-20 h-20 shrink-0 rounded-2xl bg-emerald-500 flex items-center justify-center text-4xl shadow-lg shadow-emerald-500/30">
+              📱
+            </div>
+            <div className="flex-1 text-center md:text-right">
+              <h2 className="text-2xl md:text-3xl font-extrabold text-gray-900">
+                רוצה לראות את זה <span className={gradientText}>בפעולה?</span>
+              </h2>
+              <p className="mt-3 text-gray-600 leading-relaxed">
+                שלח הודעת WhatsApp למספר הדמו ושאל כל שאלה — בעברית, בערבית או באנגלית. הבוט יענה לך תוך שניות.
+              </p>
+              <p className="mt-3 text-2xl font-extrabold text-gray-900 tracking-wide" dir="ltr">
+                {DEMO_PHONE_DISPLAY}
+              </p>
+            </div>
+            <a
+              href={DEMO_WHATSAPP_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="shrink-0 rounded-xl bg-emerald-500 px-7 py-3.5 text-sm font-bold text-white hover:bg-emerald-600 active:scale-[0.99] transition-all shadow-lg shadow-emerald-500/30"
+            >
+              שלח הודעה ב-WhatsApp
+            </a>
+          </div>
+        </section>
+
+        {/* CTA */}
+        <section className="max-w-4xl mx-auto px-4 pb-20">
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-l from-indigo-600 via-purple-600 to-pink-500 p-10 text-center text-white shadow-2xl shadow-purple-600/30">
+            <h2 className="text-3xl font-extrabold">מוכן לתת ללקוחות מענה מיידי?</h2>
+            <p className="mt-3 text-white/85">דבר איתנו ונחבר את הבוט למספר ה-WhatsApp של העסק שלך.</p>
+            <a
+              href={CONTACT_WHATSAPP_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-7 inline-block rounded-xl bg-white px-7 py-3 text-sm font-bold text-purple-700 hover:bg-white/90 transition-colors shadow-lg"
+            >
+              צור קשר
+            </a>
+          </div>
+        </section>
+      </main>
+
+      <footer className="max-w-6xl mx-auto px-4 py-8 flex flex-wrap items-center justify-between gap-3 text-sm text-gray-500 border-t border-white/60">
+        <p>© {new Date().getFullYear()} Rani Support</p>
+        <Link href="/privacy" className="hover:text-gray-800 transition-colors">
+          מדיניות פרטיות
+        </Link>
+      </footer>
+    </div>
   )
 }
